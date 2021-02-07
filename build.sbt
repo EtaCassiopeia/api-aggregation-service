@@ -11,8 +11,14 @@ lazy val client = project
       Libraries.zio,
       Libraries.zioLogging,
       Libraries.zioLoggingSlf4j,
-      Libraries.scalaUri
-    ) ++ Libraries.circeModules ++ Libraries.sttpModules
+      Libraries.scalaUri,
+      Libraries.refined,
+      Libraries.pureConfig,
+      Libraries.scalaIso,
+      Libraries.test.zioTest,
+      Libraries.test.zioTestSbt,
+      Libraries.test.scalaCheck
+    ) ++ Libraries.circeModules ++ Libraries.sttpModules ++ Libraries.enumeratumModules
   )
 
 lazy val root = (project in file("."))

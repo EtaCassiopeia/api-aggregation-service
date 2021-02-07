@@ -1,6 +1,5 @@
 import Dependencies._
 import com.typesafe.sbt.packager.Keys._
-import com.typesafe.sbt.packager.archetypes.jar.LauncherJarPlugin.autoImport.packageJavaLauncherJar
 import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 import com.typesafe.sbt.packager.docker.DockerPlugin.autoImport.{Docker, dockerPermissionStrategy}
 import org.scalafmt.sbt.ScalafmtPlugin.autoImport.scalafmtOnCompile
@@ -36,6 +35,8 @@ object Settings {
       testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
     )
 
+  val higherKinds = addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector)
+
   lazy val sbtSettings =
     Seq(
       fork := true,
@@ -52,10 +53,9 @@ object Settings {
         "Confluent".at("https://packages.confluent.io/maven/"),
         "jitpack".at("https://jitpack.io"),
         Resolver.jcenterRepo
-      )
+      ),
+      higherKinds
     )
-
-  val higherKinds = addCompilerPlugin("org.typelevel" %% "kind-projector" % Versions.kindProjector)
 
   lazy val dockerSettings =
     Seq(
@@ -64,7 +64,7 @@ object Settings {
       maintainer in Docker := "Mohsen Zainalpour",
       packageSummary := "API aggregation service",
       packageDescription := "API aggregation service",
-      dockerExposedPorts ++= Seq(8080),
+      dockerExposedPorts ++= Seq(8181),
       dockerUpdateLatest := true,
       daemonUserUid in Docker := None,
       daemonUser in Docker := "root",

@@ -2,15 +2,13 @@ package com.fedex.api.http
 
 import io.circe
 import io.circe.Decoder
-import sttp.client
-import sttp.client.asynchttpclient.zio.SttpClient
-import sttp.client.circe.asJson
-import sttp.client.{ResponseError, basicRequest}
+import sttp.client3._
+import sttp.client3.asynchttpclient.zio._
+import sttp.client3.circe._
 import sttp.model.{HeaderNames, StatusCode, Uri}
-import zio.clock.Clock
-import zio.duration.durationInt
-import zio.logging.{LogLevel, Logging, log}
 import zio._
+import zio.clock.Clock
+import zio.logging.{LogLevel, Logging, log}
 
 object HttpClient {
 
@@ -27,37 +25,44 @@ object HttpClient {
   object Service {
     val live: Service = new Service {
 
-      private def enrichedRequest(extraParams: Map[String, String] = Map.empty) =
+      private val enrichedRequest =
         basicRequest
           .headers(
             Map(
               HeaderNames.ContentType -> "application/json; charset=utf-8",
               HeaderNames.Accept -> "application/json; charset=utf-8"
-            ) ++ extraParams
+            )
           )
 
       private def sendRequest[Response](
-        request: client.Request[Either[ResponseError[circe.Error], Response], Nothing]
+        request: Request[Either[ResponseException[String, circe.Error], Response], Any]
       ): ZIO[HttpClientEnv, HttpClientError, Response] =
         log(LogLevel.Info)(s"Sending request: " + request.toCurl) *>
-          SttpClient
-            .send(request)
-            .timeoutFail(RequestTimedOut(s"Request timeout: $request"))(30.seconds)
+          send(request)
+            //back-end services are delivered with an SLA guaranteeing a response time of at most 5 seconds
+            .disconnect
+            .timeoutFail(RequestTimedOut(s"Request timeout: $request"))(new DurationSyntax(5).seconds)
             .reject {
-              case r if r.code == StatusCode.TooManyRequests => TooManyRequests(r.toString())
+              case r if r.code == StatusCode.ServiceUnavailable => ServiceUnavailable(r.toString())
+              case r if r.code == StatusCode.BadRequest         => BadRequest(r.toString())
+              case r if r.code != StatusCode.Ok                 => GenericHttpError(r.toString())
             }
             .map(_.body)
             .absolve
-            .bimap(err => GenericHttpError(err.getMessage), identity)
+            .mapError {
+              case httpError: HttpClientError => httpError
+              case ex: Throwable =>
+                GenericHttpError(ex.getMessage)
+            }
 
       override def get[Response: Decoder](
         uri: Uri,
         query: String
       ): ZIO[HttpClientEnv, HttpClientError, Response] = {
 
-        val getRequest = enrichedRequest()
+        val getRequest = enrichedRequest
+          .get(uri.addParam("q", query))
           .response(asJson[Response])
-          .get(uri.param("q", query))
 
         sendRequest(getRequest)
       }
