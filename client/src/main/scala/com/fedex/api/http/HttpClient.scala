@@ -8,7 +8,7 @@ import sttp.client3.circe._
 import sttp.model.{HeaderNames, StatusCode, Uri}
 import zio._
 import zio.clock.Clock
-import zio.logging.{LogLevel, Logging, log}
+import zio.logging.{Logging, log}
 
 object HttpClient {
 
@@ -37,7 +37,7 @@ object HttpClient {
       private def sendRequest[Response](
         request: Request[Either[ResponseException[String, circe.Error], Response], Any]
       ): ZIO[HttpClientEnv, HttpClientError, Response] =
-        log(LogLevel.Info)(s"Sending request: " + request.toCurl) *>
+        log.info(s"Sending request: " + request.toCurl) *>
           send(request)
             //back-end services are delivered with an SLA guaranteeing a response time of at most 5 seconds
             .disconnect

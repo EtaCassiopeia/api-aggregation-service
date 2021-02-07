@@ -1,12 +1,8 @@
 package com.fedex.api.client
 
+import com.fedex.api.client.model._
 import com.fedex.api.http.HttpClient.{HttpClient, HttpClientEnv, _}
 import com.fedex.api.http.HttpClientError
-import eu.timepit.refined._
-import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.numeric.Interval
-import eu.timepit.refined.string._
-import io.bartholomews.iso_country.CountryCodeAlpha2
 import io.circe.generic.auto._
 import io.circe.refined._
 import sttp.model.Uri
@@ -17,23 +13,14 @@ object FedexClient {
   type FedexClient = Has[FedexClient.Service]
   type FedexClientEnv = HttpClient with HttpClientEnv
 
-  type OrderNumber = String Refined MatchesRegex[W.`"^[0-9]{9}$"`.T]
-  object OrderNumber extends RefinedTypeOps[OrderNumber, String]
-
-  type ProductType = String
-  type PriceType = Float Refined Interval.Closed[0f, 100f]
-  object PriceType extends RefinedTypeOps[PriceType, Float]
-
-  type ISOCountyCode = CountryCodeAlpha2
-
   trait Service {
-    def products(
+    def shipments(
       orderNumbers: OrderNumber*
-    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, ProductType]]
+    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]]
 
-    def trackStatus(
+    def track(
       orderNumbers: OrderNumber*
-    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackingStatus]]
+    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]]
 
     def pricing(
       countryCode: ISOCountyCode*
@@ -43,19 +30,19 @@ object FedexClient {
   object Service {
     def live(baseUrl: Uri): Service =
       new Service {
-        override def products(
+        override def shipments(
           orderNumbers: OrderNumber*
-        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, ProductType]] =
-          get[Map[OrderNumber, ProductType]](
-            baseUrl.addPath("/shipments"),
+        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]] =
+          get[Map[OrderNumber, List[ProductType]]](
+            baseUrl.addPath("shipments"),
             orderNumbers.mkString(",")
           )
 
-        override def trackStatus(
+        override def track(
           orderNumbers: OrderNumber*
-        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackingStatus]] =
-          get[Map[OrderNumber, TrackingStatus]](
-            baseUrl.addPath("/track"),
+        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]] =
+          get[Map[OrderNumber, TrackStatus]](
+            baseUrl.addPath("track"),
             orderNumbers.mkString(",")
           )
 
@@ -63,24 +50,24 @@ object FedexClient {
           countryCode: ISOCountyCode*
         ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[ISOCountyCode, PriceType]] =
           get[Map[ISOCountyCode, PriceType]](
-            baseUrl.addPath("/pricing"),
-            countryCode.mkString(",")
+            baseUrl.addPath("pricing"),
+            countryCode.map(_.value).mkString(",")
           )
       }
   }
 
-  def live(baseUrl: String): ULayer[Has[Service]] =
-    ZLayer.succeed(Service.live(Uri(baseUrl)))
+  def live(host: String, port: Int): ULayer[Has[Service]] =
+    ZLayer.succeed(Service.live(Uri(host, port)))
 
-  def products(
+  def shipments(
     orderNumbers: OrderNumber*
-  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, ProductType]] =
-    ZIO.accessM(_.get.products(orderNumbers: _*))
+  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]] =
+    ZIO.accessM(_.get.shipments(orderNumbers: _*))
 
-  def trackStatus(
+  def track(
     orderNumbers: OrderNumber*
-  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, TrackingStatus]] =
-    ZIO.accessM(_.get.trackStatus(orderNumbers: _*))
+  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]] =
+    ZIO.accessM(_.get.track(orderNumbers: _*))
 
   def pricing(
     countryCode: ISOCountyCode*

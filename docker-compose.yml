@@ -11,7 +11,10 @@ services:
     ports:
       - "8181:8181"
     environment:
-      BACKEND_HOST: backend:8080
+      BACKEND_HOST: backend
+      BACKEND_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8181
       LOG_LEVEL: INFO
     depends_on:
       - backend

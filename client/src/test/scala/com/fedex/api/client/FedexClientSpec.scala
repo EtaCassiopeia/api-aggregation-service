@@ -1,6 +1,7 @@
 package com.fedex.api.client
 
 import com.fedex.api.client.FedexClient._
+import com.fedex.api.client.model._
 import com.fedex.api.http.{HttpClient, RequestTimedOut, ServiceUnavailable}
 import eu.timepit.refined.auto._
 import io.circe.refined._
@@ -22,7 +23,7 @@ object FedexClientSpec extends DefaultRunnableSpec {
   val availableOrderNumber: OrderNumber = "123456891"
   val availableOrderNumberWithDelay: OrderNumber = "123456892"
 
-  val expectedProductResponse = Map(availableOrderNumber -> "envelope")
+  val expectedProductResponse = Map(availableOrderNumber -> List("envelope"))
 
   val stubSttp: ULayer[SttpClient] = ZLayer.succeed(
     AsyncHttpClientZioBackend.stub
@@ -38,20 +39,20 @@ object FedexClientSpec extends DefaultRunnableSpec {
   )
 
   val testLayer =
-    HttpClient.live ++ FedexClient.live("localhost:8080") ++ stubSttp ++ Logging.console()
+    HttpClient.live ++ FedexClient.live("localhost", 8080) ++ stubSttp ++ Logging.console()
 
   override def spec: ZSpec[_root_.zio.test.environment.TestEnvironment, Any] =
     suite("FedexClient")(
       testM("should be able to handle errors") {
         val testCase = for {
-          res <- products(unavailableOrderNumber).run
+          res <- shipments(unavailableOrderNumber).run
         } yield assert(res)(fails(isSubtype[ServiceUnavailable](anything)))
 
         testCase.provideSomeLayer(testLayer)
       },
       testM("should be able to handle request timeouts") {
         val testCase = for {
-          fiber <- products(availableOrderNumberWithDelay).fork
+          fiber <- shipments(availableOrderNumberWithDelay).fork
           _ <- TestClock.adjust(5.seconds)
           res <- fiber.join.run
         } yield assert(res)(fails(isSubtype[RequestTimedOut](anything)))
@@ -61,7 +62,7 @@ object FedexClientSpec extends DefaultRunnableSpec {
       testM("should be able to get the response within a reasonable time") {
         val testCase =
           for {
-            res <- products(availableOrderNumber)
+            res <- shipments(availableOrderNumber)
             productList = res.keys
           } yield assert(productList)(
             hasSameElements(

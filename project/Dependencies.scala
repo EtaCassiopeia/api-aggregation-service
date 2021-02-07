@@ -5,17 +5,18 @@ object Dependencies {
   object Versions {
     val zioVersion = "1.0.4-2"
     val zioLoggingVersion = "0.5.6"
-    val zioMacrosVersion = "0.6.2"
+    val zioCatsInteropVersion = "2.2.0.1"
+    val https4Version = "1.0-232-85dadc2"
     val pureConfigVersion = "0.14.0"
     val circeVersion = "0.13.0"
-    val sttpVersion = "3.1.0" //"2.2.9"
+    val sttpVersion = "3.1.0"
     val scalaUriVersion = "2.2.2"
     val log4jVersion = "2.13.1"
     val scalaTestVersion = "3.2.2"
     val kindProjector = "0.10.3"
     val refinedVersion = "0.9.20"
     val enumeratumVersion = "1.6.1"
-    val scalaIsoVersion = "0.1.1"
+    val scalaIsoVersion = "0.1.2"
   }
 
   object Libraries {
@@ -23,8 +24,12 @@ object Dependencies {
     import Versions._
 
     val zio = "dev.zio" %% "zio" % zioVersion
+    val zioCatsInterop = "dev.zio" %% "zio-interop-cats" % zioCatsInteropVersion
     val zioLogging = "dev.zio" %% "zio-logging" % zioLoggingVersion
     val zioLoggingSlf4j = "dev.zio" %% "zio-logging-slf4j" % zioLoggingVersion
+
+    private val http4s: String => ModuleID = artifact => "org.http4s" %% artifact % https4Version
+    val http4sModules = Seq("http4s-blaze-server", "http4s-dsl", "http4s-circe").map(http4s)
 
     private val log4j: String => ModuleID = artifact => "org.apache.logging.log4j" % artifact % log4jVersion
 

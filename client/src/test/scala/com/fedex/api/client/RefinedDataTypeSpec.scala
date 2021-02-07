@@ -1,6 +1,6 @@
 package com.fedex.api.client
 
-import com.fedex.api.client.FedexClient._
+import com.fedex.api.client.model._
 import com.fedex.api.http.{BadRequest, HttpClientError}
 import io.bartholomews.iso_country.CountryCodeAlpha2
 import zio.ZIO

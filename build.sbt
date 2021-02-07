@@ -1,5 +1,5 @@
 import Dependencies._
-import Settings.{commonSettings, compilerSettings, sbtSettings}
+import Settings.{commonSettings, compilerSettings, dockerSettings, sbtSettings}
 
 lazy val client = project
   .settings(commonSettings: _*)
@@ -30,6 +30,13 @@ lazy val root = (project in file("."))
   .settings(commonSettings: _*)
   .settings(compilerSettings: _*)
   .settings(sbtSettings: _*)
+  .settings(dockerSettings: _*)
+  .settings(
+    libraryDependencies ++= Seq(
+      Libraries.zioCatsInterop
+    ) ++ Libraries.http4sModules,
+    mainClass in Compile := Some("com.fedex.api.aggregate.ApiAggregator")
+  )
   .enablePlugins(
     JavaAppPackaging,
     DockerPlugin
