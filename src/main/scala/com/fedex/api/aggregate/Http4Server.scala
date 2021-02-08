@@ -4,8 +4,6 @@ import com.fedex.api.aggregate.ApiAggregator.{AppEnvironment, AppTask}
 import com.fedex.api.aggregate.config.ServerConfig
 import com.fedex.api.aggregate.route.RouteHelper._
 import com.fedex.api.aggregate.route.Routes
-import com.fedex.api.aggregate.util.BulkDike
-import com.fedex.api.client.FedexClient.{FedexClient, FedexClientEnv}
 import com.fedex.api.client.model.{ISOCountyCode, OrderNumber, PriceType, ProductType, TrackStatus}
 import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeServerBuilder
@@ -18,16 +16,11 @@ object Http4Server {
 
   def createHttp4Server(
     serverConfig: ServerConfig,
-    pricingQueue: BulkDike[
-      FedexClient with FedexClientEnv,
-      Nothing,
-      List[ISOCountyCode],
-      Map[ISOCountyCode, PriceType]
-    ],
-    trackQueue: BulkDike[FedexClient with FedexClientEnv, Nothing, List[OrderNumber], Map[OrderNumber, TrackStatus]],
-    shipmentsQueue: BulkDike[FedexClient with FedexClientEnv, Nothing, List[OrderNumber], Map[OrderNumber, List[
+    pricingQueue: BulkDikeType[List[ISOCountyCode], Map[ISOCountyCode, Option[PriceType]]],
+    trackQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[TrackStatus]]],
+    shipmentsQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[List[
       ProductType
-    ]]]
+    ]]]]
   ): ZManaged[AppEnvironment, Throwable, Server] =
     ZManaged.runtime[AppEnvironment].flatMap { implicit runtime: Runtime[AppEnvironment] =>
       BlazeServerBuilder[AppTask](runtime.platform.executor.asEC)

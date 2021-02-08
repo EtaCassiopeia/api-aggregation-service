@@ -16,15 +16,15 @@ object FedexClient {
   trait Service {
     def shipments(
       orderNumbers: OrderNumber*
-    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]]
+    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, Option[List[ProductType]]]]
 
     def track(
       orderNumbers: OrderNumber*
-    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]]
+    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, Option[TrackStatus]]]
 
     def pricing(
       countryCode: ISOCountyCode*
-    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[ISOCountyCode, PriceType]]
+    ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[ISOCountyCode, Option[PriceType]]]
   }
 
   object Service {
@@ -32,24 +32,24 @@ object FedexClient {
       new Service {
         override def shipments(
           orderNumbers: OrderNumber*
-        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]] =
-          get[Map[OrderNumber, List[ProductType]]](
+        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, Option[List[ProductType]]]] =
+          get[Map[OrderNumber, Option[List[ProductType]]]](
             baseUrl.addPath("shipments"),
             orderNumbers.mkString(",")
           )
 
         override def track(
           orderNumbers: OrderNumber*
-        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]] =
-          get[Map[OrderNumber, TrackStatus]](
+        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[OrderNumber, Option[TrackStatus]]] =
+          get[Map[OrderNumber, Option[TrackStatus]]](
             baseUrl.addPath("track"),
             orderNumbers.mkString(",")
           )
 
         override def pricing(
           countryCode: ISOCountyCode*
-        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[ISOCountyCode, PriceType]] =
-          get[Map[ISOCountyCode, PriceType]](
+        ): ZIO[HttpClient with HttpClientEnv, HttpClientError, Map[ISOCountyCode, Option[PriceType]]] =
+          get[Map[ISOCountyCode, Option[PriceType]]](
             baseUrl.addPath("pricing"),
             countryCode.map(_.value).mkString(",")
           )
@@ -61,17 +61,17 @@ object FedexClient {
 
   def shipments(
     orderNumbers: OrderNumber*
-  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, List[ProductType]]] =
+  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, Option[List[ProductType]]]] =
     ZIO.accessM(_.get.shipments(orderNumbers: _*))
 
   def track(
     orderNumbers: OrderNumber*
-  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, TrackStatus]] =
+  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[OrderNumber, Option[TrackStatus]]] =
     ZIO.accessM(_.get.track(orderNumbers: _*))
 
   def pricing(
     countryCode: ISOCountyCode*
-  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[ISOCountyCode, PriceType]] =
+  ): ZIO[FedexClient with FedexClientEnv, HttpClientError, Map[ISOCountyCode, Option[PriceType]]] =
     ZIO.accessM(_.get.pricing(countryCode: _*))
 
 }

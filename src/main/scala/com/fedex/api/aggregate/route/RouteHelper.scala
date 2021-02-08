@@ -11,26 +11,30 @@ object RouteHelper {
   private val defaultGroupedWithinDuration = 5.seconds
 
   private def pricingEffect(countryCodes: List[ISOCountyCode]) =
-    pricing(countryCodes: _*).catchAll(error => log.error(error.getMessage).as(Map.empty[ISOCountyCode, PriceType]))
+    pricing(countryCodes: _*).catchAll(error =>
+      log.error(error.getMessage).as(Map.empty[ISOCountyCode, Option[PriceType]])
+    )
 
   private def pricingExtractResult(
     countryCodes: List[ISOCountyCode],
-    fullResult: Map[ISOCountyCode, PriceType]
-  ): Map[ISOCountyCode, PriceType] = {
-    countryCodes.map(cc => cc -> fullResult.getOrElse(cc, PriceType.unsafeFrom(0f))).toMap
+    fullResult: Map[ISOCountyCode, Option[PriceType]]
+  ): Map[ISOCountyCode, Option[PriceType]] = {
+    countryCodes.map(cc => cc -> fullResult.getOrElse(cc, None)).toMap
   }
 
   val pricingBulkDike =
     BulkDike.make("Pricing", defaultGroupedCalls, defaultGroupedWithinDuration, pricingEffect, pricingExtractResult)
 
   private def trackEffect(orderNumbers: List[OrderNumber]) =
-    track(orderNumbers: _*).catchAll(error => log.error(error.getMessage).as(Map.empty[OrderNumber, TrackStatus]))
+    track(orderNumbers: _*).catchAll(error =>
+      log.error(error.getMessage).as(Map.empty[OrderNumber, Option[TrackStatus]])
+    )
 
   private def trackExtractResult(
     orderNumbers: List[OrderNumber],
-    fullResult: Map[OrderNumber, TrackStatus]
-  ): Map[OrderNumber, TrackStatus] = {
-    orderNumbers.map(orderNumber => orderNumber -> fullResult.getOrElse(orderNumber, null)).toMap
+    fullResult: Map[OrderNumber, Option[TrackStatus]]
+  ): Map[OrderNumber, Option[TrackStatus]] = {
+    orderNumbers.map(orderNumber => orderNumber -> fullResult.getOrElse(orderNumber, None)).toMap
   }
 
   val trackBulkDike =
@@ -38,14 +42,14 @@ object RouteHelper {
 
   private def shipmentsEffect(orderNumbers: List[OrderNumber]) =
     shipments(orderNumbers: _*).catchAll(error =>
-      log.error(error.getMessage).as(Map.empty[OrderNumber, List[ProductType]])
+      log.error(error.getMessage).as(Map.empty[OrderNumber, Option[List[ProductType]]])
     )
 
   private def shipmentsExtractResult(
     orderNumbers: List[OrderNumber],
-    fullResult: Map[OrderNumber, List[ProductType]]
-  ): Map[OrderNumber, List[ProductType]] = {
-    orderNumbers.map(orderNumber => orderNumber -> fullResult.getOrElse(orderNumber, null)).toMap
+    fullResult: Map[OrderNumber, Option[List[ProductType]]]
+  ): Map[OrderNumber, Option[List[ProductType]]] = {
+    orderNumbers.map(orderNumber => orderNumber -> fullResult.getOrElse(orderNumber, None)).toMap
   }
 
   val shipmentsBulkDike =

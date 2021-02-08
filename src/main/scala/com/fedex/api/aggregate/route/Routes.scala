@@ -2,8 +2,7 @@ package com.fedex.api.aggregate.route
 
 import cats.data.Kleisli
 import com.fedex.api.aggregate.ApiAggregator.AppTask
-import com.fedex.api.aggregate.util.BulkDike
-import com.fedex.api.client.FedexClient.{FedexClient, FedexClientEnv}
+import com.fedex.api.aggregate.BulkDikeType
 import com.fedex.api.client.model._
 import io.circe.Encoder
 import io.circe.generic.auto._
@@ -16,9 +15,9 @@ import zio.interop.catz._
 import zio.logging.log
 
 case class AggregatedResponse(
-  pricing: Map[ISOCountyCode, PriceType],
-  track: Map[OrderNumber, TrackStatus],
-  shipments: Map[OrderNumber, List[ProductType]]
+  pricing: Map[ISOCountyCode, Option[PriceType]],
+  track: Map[OrderNumber, Option[TrackStatus]],
+  shipments: Map[OrderNumber, Option[List[ProductType]]]
 )
 
 object Routes {
@@ -29,16 +28,11 @@ object Routes {
   private implicit def encoder[A](implicit D: Encoder[A]): EntityEncoder[AppTask, A] = jsonEncoderOf[AppTask, A]
 
   def aggregatorService(
-    pricingQueue: BulkDike[
-      FedexClient with FedexClientEnv,
-      Nothing,
-      List[ISOCountyCode],
-      Map[ISOCountyCode, PriceType]
-    ],
-    trackQueue: BulkDike[FedexClient with FedexClientEnv, Nothing, List[OrderNumber], Map[OrderNumber, TrackStatus]],
-    shipmentsQueue: BulkDike[FedexClient with FedexClientEnv, Nothing, List[OrderNumber], Map[OrderNumber, List[
+    pricingQueue: BulkDikeType[List[ISOCountyCode], Map[ISOCountyCode, Option[PriceType]]],
+    trackQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[TrackStatus]]],
+    shipmentsQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[List[
       ProductType
-    ]]]
+    ]]]]
   ): Kleisli[AppTask, Request[AppTask], Response[AppTask]] =
     HttpRoutes
       .of[AppTask] {

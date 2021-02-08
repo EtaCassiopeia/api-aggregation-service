@@ -33,7 +33,10 @@ lazy val root = (project in file("."))
   .settings(dockerSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
-      Libraries.zioCatsInterop
+      Libraries.zioCatsInterop,
+      Libraries.test.zioTest,
+      Libraries.test.zioTestSbt,
+      Libraries.test.scalaCheck
     ) ++ Libraries.http4sModules,
     mainClass in Compile := Some("com.fedex.api.aggregate.ApiAggregator")
   )
