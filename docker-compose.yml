@@ -3,7 +3,7 @@ services:
   backend:
     image: "xyzassessment/backend-services"
     ports:
-      - "8080:8080"
+      - "8080"
 
   aggregator:
     image: "fedex/api-service-aggregator"

@@ -30,7 +30,7 @@ object Settings {
         "-Xfatal-warnings"
       ),
       logLevel := Level.Info,
-      version := "0.0.0",
+      version := "0.1.0",
       scalafmtOnCompile := true,
       testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
     )
