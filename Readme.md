@@ -89,7 +89,7 @@ Using `effect`, it makes the final API call to get the aggregated result. The la
 ## How to run 
 
 ### Prerequisites
-The Project uses below api versions :
+The Project uses below tool versions :
 
 |API name|Version|
 |---|---|
@@ -109,7 +109,7 @@ sbt docker:publishLocal
 Using `docker-compose` we can run the Docker images:
 
 ```shell
-docker-compose up
+docker-compose up -d
 ```
 
 note: this command needs to be run from the root directory of the project in which the `docker-compose.yml` file exists. As another option the file can be passed to the command via `-f`:
@@ -136,3 +136,11 @@ docker-compose down -v
 sbt test
 ```
 
+### Run load test
+
+Project contains a load-test script to perform load and stress tests against the application. To run the test you need to install `k6` on your system.
+Please follow the [instructions](https://k6.io/docs/getting-started/installation) to install `k6` then use the following command to run the load test:
+
+```shell
+k6 run load-test.js
+```
