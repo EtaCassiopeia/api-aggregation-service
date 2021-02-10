@@ -37,15 +37,16 @@ object BulkDike {
             val fullQueryParams =
               queryParamChunk.drop(1).foldLeft(queryParamChunk.head)((s, i) => Semigroup[I].combine(s, i))
 
-            log.info(s"[$name] Running effect with params $fullQueryParams") *> effect(fullQueryParams)
-              .tapBoth(
-                error => {
-                  log.error(s"[$name] ${error.toString}")
-                },
-                finalResult => {
-                  log.info(s"[$name] Received response: ${finalResult.toString}")
-                }
-              )
+//            log.info(s"[$name] Running effect with params $fullQueryParams") *>
+            effect(fullQueryParams)
+//              .tapBoth(
+//                error => {
+//                  log.error(s"[$name] ${error.toString}")
+//                },
+//                finalResult => {
+//                  log.info(s"[$name] Received response: ${finalResult.toString}")
+//                }
+//              )
               .fold(
                 error => {
                   chunk.map { case (_, result) => result }.map(_.fail(error)).toList

@@ -11,13 +11,13 @@ import org.http4s._
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
+import zio.{UIO, ZIO}
 import zio.interop.catz._
-import zio.logging.log
 
 case class AggregatedResponse(
-  pricing: Map[ISOCountyCode, Option[PriceType]],
-  track: Map[OrderNumber, Option[TrackStatus]],
-  shipments: Map[OrderNumber, Option[List[ProductType]]]
+  pricing: Option[Map[ISOCountyCode, Option[PriceType]]],
+  track: Option[Map[OrderNumber, Option[TrackStatus]]],
+  shipments: Option[Map[OrderNumber, Option[List[ProductType]]]]
 )
 
 object Routes {
@@ -26,6 +26,14 @@ object Routes {
   import dsl._
 
   private implicit def encoder[A](implicit D: Encoder[A]): EntityEncoder[AppTask, A] = jsonEncoderOf[AppTask, A]
+
+  private def callService[I, O](
+    queue: BulkDikeType[I, O],
+    parameters: Parameter[I]
+  ): UIO[Option[O]] =
+    parameters
+      .flatMap(_.toOption)
+      .fold(ZIO.succeed(Option.empty[O]))(queue(_).asSome)
 
   def aggregatorService(
     pricingQueue: BulkDikeType[List[ISOCountyCode], Map[ISOCountyCode, Option[PriceType]]],
@@ -39,30 +47,26 @@ object Routes {
         case GET -> Root / "aggregation" :? PricingQueryParamMatcher(pricingQueryParam) +& TrackQueryParamMatcher(
               trackQueryParam
             ) +& ShipmentQueryParamMatcher(shipmentsQueryParam) =>
-          (pricingQueryParam, trackQueryParam, shipmentsQueryParam) match {
-            case (Right(p), Right(t), Right(s)) =>
-              val result = for {
-                pricingResponseFiber <- log.info(s"Queuing pricing request with parameters $p") *> pricingQueue(p).fork
+          val providedParameters = List(pricingQueryParam, trackQueryParam, shipmentsQueryParam).flatten
+          if (!providedParameters.forall(_.isRight)) {
+            BadRequest(
+              providedParameters
+                .flatMap(_.swap.getOrElse(List.empty))
+                .mkString(",")
+            )
+          } else {
+            val result = for {
+              pricingResponseFiber <- callService(pricingQueue, pricingQueryParam).fork
+              trackResponseFiber <- callService(trackQueue, trackQueryParam).fork
+              shipmentsResponseFiber <- callService(shipmentsQueue, shipmentsQueryParam).fork
 
-                trackResponseFiber <- log.info(s"Queuing track request with parameters $t") *> trackQueue(t).fork
+              pricingResponse <- pricingResponseFiber.join
+              trackResponse <- trackResponseFiber.join
+              shipmentsResponse <- shipmentsResponseFiber.join
 
-                shipmentsResponseFiber <-
-                  log.info(s"Queuing shipments request with parameters $s") *> shipmentsQueue(s).fork
+            } yield AggregatedResponse(pricingResponse, trackResponse, shipmentsResponse)
 
-                pricingResponse <- pricingResponseFiber.join
-                trackResponse <- trackResponseFiber.join
-                shipmentsResponse <- shipmentsResponseFiber.join
-
-              } yield AggregatedResponse(pricingResponse, trackResponse, shipmentsResponse)
-
-              Ok(result)
-            case _ =>
-              BadRequest(
-                List(pricingQueryParam, trackQueryParam, shipmentsQueryParam)
-                  .filter(_.isLeft)
-                  .flatMap(_.swap.getOrElse(List.empty))
-                  .mkString(",")
-              )
+            Ok(result)
           }
       }
       .orNotFound

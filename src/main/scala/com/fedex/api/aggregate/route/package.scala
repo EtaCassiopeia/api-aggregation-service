@@ -6,11 +6,13 @@ import cats.syntax.traverse._
 import com.fedex.api.client.model._
 import io.bartholomews.iso_country.CountryCodeAlpha2
 import org.http4s._
-import org.http4s.dsl.io.QueryParamDecoderMatcher
+import org.http4s.dsl.io.OptionalQueryParamDecoderMatcher
 
 import scala.util.Either
 
 package object route {
+
+  type Parameter[I] = Option[Either[List[String], I]]
 
   private def collectErrors[A, B](xs: List[Either[A, B]]): Either[List[A], List[B]] =
     xs.traverse(_.left.map(List(_)).toValidated).toEither
@@ -36,10 +38,12 @@ package object route {
     }
 
   object ShipmentQueryParamMatcher
-      extends QueryParamDecoderMatcher[Either[List[String], List[OrderNumber]]]("shipments")
+      extends OptionalQueryParamDecoderMatcher[Either[List[String], List[OrderNumber]]]("shipments")
 
-  object TrackQueryParamMatcher extends QueryParamDecoderMatcher[Either[List[String], List[OrderNumber]]]("track")
+  object TrackQueryParamMatcher
+      extends OptionalQueryParamDecoderMatcher[Either[List[String], List[OrderNumber]]]("track")
 
-  object PricingQueryParamMatcher extends QueryParamDecoderMatcher[Either[List[String], List[ISOCountyCode]]]("pricing")
+  object PricingQueryParamMatcher
+      extends OptionalQueryParamDecoderMatcher[Either[List[String], List[ISOCountyCode]]]("pricing")
 
 }
