@@ -1,12 +1,11 @@
 package com.fedex.api.aggregate.util
 
-import com.fedex.api.http.HttpClientError
-import zio.{Fiber, ZIO}
+import zio.ZIO
 import zio.clock.{Clock, currentTime}
 import zio.console.Console
 import zio.duration.durationInt
 import zio.logging.{Logging, log}
-import zio.test.Assertion.{anything, fails, hasSameElements, isGreaterThanEqualTo, isSubtype}
+import zio.test.Assertion._
 import zio.test.TestAspect.sequential
 import zio.test.environment.TestClock
 import zio.test.{DefaultRunnableSpec, ZSpec, assert}
@@ -101,7 +100,7 @@ object BulkDikeSpec extends DefaultRunnableSpec {
             for {
               _ <- bulkDike(List(1)).fork
               _ <- bulkDike(List(2)).fork
-              f3 <- bulkDike(List(3)).fork //This should reject
+              f3 <- bulkDike(List(3)).fork //This must be rejected
               result <- f3.join.run
             } yield assert(result)(fails(isSubtype[String](anything)))
           }
