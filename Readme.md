@@ -85,6 +85,8 @@ Instead of adding the logic to make the call we only store the query parameters 
 An internal stream that is connected to the queue consumes the elements in chunks (5 elements each time or any number of elements received within 5 seconds). 
 Using `effect`, it makes the final API call to get the aggregated result. The last step is to complete the in-flight promises with the extracted results.
 
+In order To prevent the queue from being overwhelmed, `BulkDike` constantly monitors the number of the queued elements as well as the number of in-flight calls. 
+If the amount of workload exceeds the capacity of the server it starts to reject the requests.
 
 ## How to run 
 

@@ -3,12 +3,14 @@ package com.fedex.api.aggregate.route
 import com.fedex.api.aggregate.util.BulkDike
 import com.fedex.api.client.FedexClient._
 import com.fedex.api.client.model._
+import com.fedex.api.http.{HttpClientError, TooMayRequests}
 import zio.duration.durationInt
 import zio.logging.log
 
 object RouteHelper {
   private val defaultGroupedCalls = 5
   private val defaultGroupedWithinDuration = 5.seconds
+  private val rejectionError: HttpClientError = TooMayRequests("Too Many Requests")
 
   private def pricingEffect(countryCodes: List[ISOCountyCode]) =
     pricing(countryCodes: _*).catchAll(error =>
@@ -23,7 +25,13 @@ object RouteHelper {
   }
 
   val pricingBulkDike =
-    BulkDike.make("Pricing", defaultGroupedCalls, defaultGroupedWithinDuration, pricingEffect, pricingExtractResult)
+    BulkDike.make(
+      defaultGroupedCalls,
+      defaultGroupedWithinDuration,
+      pricingEffect,
+      pricingExtractResult,
+      rejectionError
+    )
 
   private def trackEffect(orderNumbers: List[OrderNumber]) =
     track(orderNumbers: _*).catchAll(error =>
@@ -38,7 +46,7 @@ object RouteHelper {
   }
 
   val trackBulkDike =
-    BulkDike.make("Track", defaultGroupedCalls, defaultGroupedWithinDuration, trackEffect, trackExtractResult)
+    BulkDike.make(defaultGroupedCalls, defaultGroupedWithinDuration, trackEffect, trackExtractResult, rejectionError)
 
   private def shipmentsEffect(orderNumbers: List[OrderNumber]) =
     shipments(orderNumbers: _*).catchAll(error =>
@@ -54,11 +62,11 @@ object RouteHelper {
 
   val shipmentsBulkDike =
     BulkDike.make(
-      "Shipments",
       defaultGroupedCalls,
       defaultGroupedWithinDuration,
       shipmentsEffect,
-      shipmentsExtractResult
+      shipmentsExtractResult,
+      rejectionError
     )
 
 }

@@ -33,7 +33,7 @@ object Routes {
   ): UIO[Option[O]] =
     parameters
       .flatMap(_.toOption)
-      .fold(ZIO.succeed(Option.empty[O]))(queue(_).asSome)
+      .fold(ZIO.succeed(Option.empty[O]))(queue(_).asSome.catchAll(_ => ZIO.succeed(Option.empty[O])))
 
   def aggregatorService(
     pricingQueue: BulkDikeType[List[ISOCountyCode], Map[ISOCountyCode, Option[PriceType]]],

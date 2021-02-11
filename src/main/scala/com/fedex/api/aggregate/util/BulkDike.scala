@@ -4,8 +4,9 @@ import cats.kernel.Semigroup
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.logging.{Logging, log}
+import zio.logging.Logging
 import zio.stream.ZStream
+import cats.implicits._
 
 trait BulkDike[R, E, I, A] {
   def apply(query: I): ZIO[Any, E, A]
@@ -13,52 +14,71 @@ trait BulkDike[R, E, I, A] {
 
 object BulkDike {
 
+  private final case class State(enqueued: Int, inFlight: Int) {
+    val total = enqueued + inFlight
+    def enqueue: State = copy(enqueued + 1)
+    def startBatchProcess(n: Int): State = copy(enqueued - n, inFlight + n)
+    def endProcess: State = copy(enqueued, inFlight - 1)
+  }
+
   def make[R, E, I: Semigroup, A](
-    name: String,
     groupedCalls: Int,
     groupedWithinDuration: Duration,
     effect: I => ZIO[R, E, A],
     extractResult: (I, A) => A,
-    maxQueueing: Int = 100
+    rejection: => E,
+    maxInFlightCalls: Int = 10,
+    maxQueueing: Int = 20
   ): ZManaged[R with Logging with Clock, Nothing, BulkDike[R, E, I, A]] =
     for {
       queue <-
         ZQueue
-          .bounded[(I, Promise[E, A])](maxQueueing)
+          .bounded[(I, Promise[E, A], Promise[E, Unit])](maxQueueing)
           .toManaged_
+      inFlightAndQueued <- Ref.make(State(0, 0)).toManaged_
       _ <-
         ZStream
           .fromQueue(queue)
+          .mapConcatM {
+            case (input, result, enqueued) =>
+              inFlightAndQueued.modify { state =>
+                if (state.total < maxQueueing)
+                  (enqueued.succeed(()).as(List(input -> result)), state.enqueue)
+                else
+                  (enqueued.fail(rejection).as(List.empty), state)
+              }.flatten
+          }
           .groupedWithin(groupedCalls, groupedWithinDuration)
           .mapConcatM { chunk =>
             val queryParamChunk = chunk.map {
               case (query, _) => query
             }
-            val fullQueryParams =
-              queryParamChunk.drop(1).foldLeft(queryParamChunk.head)((s, i) => Semigroup[I].combine(s, i))
+            val fullQueryParams = queryParamChunk.reduce(_ combine _)
 
-//            log.info(s"[$name] Running effect with params $fullQueryParams") *>
-            effect(fullQueryParams)
-//              .tapBoth(
-//                error => {
-//                  log.error(s"[$name] ${error.toString}")
-//                },
-//                finalResult => {
-//                  log.info(s"[$name] Received response: ${finalResult.toString}")
-//                }
-//              )
+            inFlightAndQueued
+              .update(_.startBatchProcess(chunk.size)) *> effect(fullQueryParams)
               .fold(
                 error => {
-                  chunk.map { case (_, result) => result }.map(_.fail(error)).toList
+                  chunk.map {
+                    case (_, result) =>
+                      inFlightAndQueued.get
+                        .bracket_(inFlightAndQueued.update(_.endProcess), result.fail(error))
+                  }.toList
                 },
                 finalResult => {
                   chunk.map {
-                    case (query, result) => result.succeed(extractResult(query, finalResult))
+                    case (query, result) =>
+                      inFlightAndQueued.get
+                        .bracket_(
+                          inFlightAndQueued.update(_.endProcess),
+                          result.succeed(extractResult(query, finalResult))
+                        )
                   }.toList
                 }
               )
           }
-          .mapM(task => task)
+          .buffer(maxQueueing)
+          .mapMParUnordered(maxInFlightCalls)(task => task)
           .runDrain
           .fork
           .toManaged_
@@ -66,8 +86,10 @@ object BulkDike {
       override def apply(query: I): ZIO[Any, E, A] =
         for {
           result <- Promise.make[E, A]
+          enqueued <- Promise.make[E, Unit]
           resultValue <- for {
-            _ <- queue.offer((query, result))
+            _ <- queue.offer((query, result, enqueued))
+            _ <- enqueued.await
             r <- result.await
           } yield r
         } yield resultValue

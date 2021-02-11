@@ -8,3 +8,4 @@ final case class GenericHttpError(message: String) extends Throwable(message) wi
 final case class RequestTimedOut(message: String) extends Throwable(message) with HttpClientError
 final case class BadRequest(message: String) extends Throwable(message) with HttpClientError
 final case class ServiceUnavailable(message: String) extends Throwable(message) with HttpClientError
+final case class TooMayRequests(message: String) extends Throwable(message) with HttpClientError

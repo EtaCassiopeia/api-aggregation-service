@@ -1,11 +1,12 @@
 package com.fedex.api.aggregate.util
 
-import zio.ZIO
+import com.fedex.api.http.HttpClientError
+import zio.{Fiber, ZIO}
 import zio.clock.{Clock, currentTime}
 import zio.console.Console
 import zio.duration.durationInt
 import zio.logging.{Logging, log}
-import zio.test.Assertion.{hasSameElements, isGreaterThanEqualTo}
+import zio.test.Assertion.{anything, fails, hasSameElements, isGreaterThanEqualTo, isSubtype}
 import zio.test.TestAspect.sequential
 import zio.test.environment.TestClock
 import zio.test.{DefaultRunnableSpec, ZSpec, assert}
@@ -28,7 +29,24 @@ object BulkDikeSpec extends DefaultRunnableSpec {
   }
 
   val dummyBulkDike =
-    BulkDike.make("Dummy", defaultGroupedCalls, defaultGroupedWithinDuration, dummyEffect, dummyExtractResult)
+    BulkDike.make(
+      defaultGroupedCalls,
+      defaultGroupedWithinDuration,
+      dummyEffect,
+      dummyExtractResult,
+      "Too Many Requests"
+    )
+
+  val lowCapBulkDike =
+    BulkDike.make(
+      defaultGroupedCalls,
+      defaultGroupedWithinDuration,
+      dummyEffect,
+      dummyExtractResult,
+      "Too Many Requests",
+      maxInFlightCalls = 1,
+      maxQueueing = 1
+    )
 
   val testLayer =
     Logging.console() ++ Clock.live ++ Console.live
@@ -63,7 +81,7 @@ object BulkDikeSpec extends DefaultRunnableSpec {
 
         testCase.provideSomeLayer(testLayer)
       },
-      testM("should be able to call the effect even if the queue is nut full") {
+      testM("should be able to call the effect even if the queue is not full") {
         val testCase =
           dummyBulkDike.use { bulkDike =>
             for {
@@ -73,6 +91,19 @@ object BulkDikeSpec extends DefaultRunnableSpec {
               _ <- resFiber.join
               endTime <- currentTime(TimeUnit.SECONDS)
             } yield assert(endTime - startTime)(isGreaterThanEqualTo(5L))
+          }
+
+        testCase.provideSomeLayer(testLayer ++ TestClock.default)
+      },
+      testM("should immediately reject the request in case the queue is full") {
+        val testCase =
+          lowCapBulkDike.use { bulkDike =>
+            for {
+              _ <- bulkDike(List(1)).fork
+              _ <- bulkDike(List(2)).fork
+              f3 <- bulkDike(List(3)).fork //This should reject
+              result <- f3.join.run
+            } yield assert(result)(fails(isSubtype[String](anything)))
           }
 
         testCase.provideSomeLayer(testLayer ++ TestClock.default)
