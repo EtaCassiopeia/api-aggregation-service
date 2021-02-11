@@ -144,5 +144,9 @@ Project contains a load-test script to perform load and stress tests against the
 Please follow the [instructions](https://k6.io/docs/getting-started/installation) to install `k6` then use the following command to run the load test:
 
 ```shell
-k6 run load-test.js
+k6 run load-test.js --log-output none
 ```
+
+Here is the example of running test for 35 minutes with medium (100 user) and high load (1000 user):
+
+![LoadTest](images/load-test.png "load-test")

@@ -28,7 +28,7 @@ object BulkDike {
     extractResult: (I, A) => A,
     rejection: => E,
     maxInFlightCalls: Int = 10,
-    maxQueueing: Int = 20
+    maxQueueing: Int = 10
   ): ZManaged[R with Logging with Clock, Nothing, BulkDike[R, E, I, A]] =
     for {
       queue <-
@@ -63,7 +63,7 @@ object BulkDike {
                     case (_, result) =>
                       inFlightAndQueued.get
                         .bracket_(inFlightAndQueued.update(_.endProcess), result.fail(error))
-                  }.toList
+                  }
                 },
                 finalResult => {
                   chunk.map {
@@ -73,7 +73,7 @@ object BulkDike {
                           inFlightAndQueued.update(_.endProcess),
                           result.succeed(extractResult(query, finalResult))
                         )
-                  }.toList
+                  }
                 }
               )
           }
