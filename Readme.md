@@ -123,7 +123,7 @@ docker-compose -f <path-to-docker-compose.yml> up
 ### Make HTTP call
 
 ```shell
-curl 'http://localhost:8181/aggregation?pricing=CN&track=109347263&shipments=109347263'
+curl 'http://localhost:8080/aggregation?pricing=CN&track=109347263&shipments=109347263'
 ```
 
 ### Stop container

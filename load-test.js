@@ -15,5 +15,5 @@ export let options = {
 };
 
 export default function() {
-    let response = http.get("http://localhost:8181/aggregation?pricing=CN&track=109347263&shipments=109347263");
+    let response = http.get("http://localhost:8080/aggregation?pricing=CN&track=109347263&shipments=109347263");
 };
