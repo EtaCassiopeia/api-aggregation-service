@@ -9,7 +9,7 @@ services:
     image: "fedex/api-service-aggregator"
     container_name: aggregator
     ports:
-      - "8181:8080"
+      - "8080:8181"
     environment:
       BACKEND_HOST: backend
       BACKEND_PORT: 8080

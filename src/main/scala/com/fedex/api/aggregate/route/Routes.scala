@@ -13,6 +13,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import zio.{UIO, ZIO}
 import zio.interop.catz._
+import cats.implicits._
 
 case class AggregatedResponse(
   pricing: Option[Map[ISOCountyCode, Option[PriceType]]],
@@ -60,11 +61,10 @@ object Routes {
               trackResponseFiber <- callService(trackQueue, trackQueryParam).fork
               shipmentsResponseFiber <- callService(shipmentsQueue, shipmentsQueryParam).fork
 
-              pricingResponse <- pricingResponseFiber.join
-              trackResponse <- trackResponseFiber.join
-              shipmentsResponse <- shipmentsResponseFiber.join
+              aggregatedResponse <- (pricingResponseFiber.join, trackResponseFiber.join, shipmentsResponseFiber.join)
+                .mapN(AggregatedResponse)
 
-            } yield AggregatedResponse(pricingResponse, trackResponse, shipmentsResponse)
+            } yield aggregatedResponse
 
             Ok(result)
           }
