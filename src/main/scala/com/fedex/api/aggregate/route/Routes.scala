@@ -36,7 +36,7 @@ object Routes {
       .flatMap(_.toOption)
       .fold(ZIO.succeed(Option.empty[QueryResponse[A, O]])) { parameterList =>
         IO.collectAllPar(parameterList.map(q => queue(List(q))).toSet)
-          .map(s => s.foldLeft(Map.empty[A, Option[O]])(_ ++ _))
+          .map(_.reduce(_ ++ _))
           .asSome
           .catchAll(_ => ZIO.succeed(Option.empty[QueryResponse[A, O]]))
       }
