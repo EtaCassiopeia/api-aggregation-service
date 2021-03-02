@@ -27,7 +27,7 @@ object BulkDike {
     effect: I => ZIO[R, E, A],
     extractResult: (I, A) => A,
     rejection: => E,
-    maxInFlightCalls: Int = 10,
+    maxInFlightCalls: Int = 50,
     maxQueueing: Int = 10
   ): ZManaged[R with Logging with Clock, Nothing, BulkDike[R, E, I, A]] =
     for {

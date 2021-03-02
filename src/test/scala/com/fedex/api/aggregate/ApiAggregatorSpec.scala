@@ -114,6 +114,30 @@ object ApiAggregatorSpec extends DefaultRunnableSpec with ApiAggregatorSpecStub 
 
         testCase.provideSomeLayer(testLayer ++ TestClock.default)
       },
+      testM(
+        "should immediately return a response as soon as a cap of 5 calls for an individual API is reached"
+      ) {
+        val testCase = for {
+          processTime <-
+            routes
+              .use(r =>
+                for {
+                  startTime <- currentTime(TimeUnit.SECONDS)
+                  f <-
+                    r.run(
+                      Request[AppTask](Method.GET, uri"/aggregation?pricing=ZA,CN,CA,NL,BE")
+                    ).fork
+                  _ <- TestClock.adjust(1.seconds)
+                  _ <- f.join
+                  endTime <- currentTime(TimeUnit.SECONDS)
+                  processTime = endTime - startTime
+                  _ <- putStrLn(s"took $processTime seconds to get the results")
+                } yield processTime
+              )
+        } yield assert(processTime)(isLessThanEqualTo(1L))
+
+        testCase.provideSomeLayer(testLayer ++ TestClock.default)
+      },
       testM("should NOT take more than 10 seconds to return a response in the worst-case scenario") {
         val testCase = for {
           startTime <- currentTime(TimeUnit.SECONDS)

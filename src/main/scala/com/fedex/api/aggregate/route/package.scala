@@ -12,7 +12,8 @@ import scala.util.Either
 
 package object route {
 
-  type Parameter[I] = Option[Either[List[String], I]]
+  type Parameter[A] = Option[Either[List[String], List[A]]]
+  type QueryResponse[A, O] = Map[A, Option[O]]
 
   private def collectErrors[A, B](xs: List[Either[A, B]]): Either[List[A], List[B]] =
     xs.traverse(_.left.map(List(_)).toValidated).toEither

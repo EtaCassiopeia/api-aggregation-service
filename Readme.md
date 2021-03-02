@@ -15,15 +15,6 @@ API Aggregation Service consolidates the interface with external APIs into a sin
 - All incoming requests for each individual API should be kept in a queue and be forwarded to the API as soon as a cap of 5 calls for an individual API is reached.
 - If the queue cap for a specific service is not reached, the service queues should send the request within 5 seconds of the oldest item being inserted into the queue.
 
-#### Assumption :
-- All query parameters are mandatory for the aggregation endpoint
-- Passing a query parameter with more than one element for a specific external endpoint is considered as one call even though it has more than one query value separated by a comma.
-  For example, in the following request, only one call request will be added to the `shipments` API queue:
-  
-```shell
-curl 'http://localhost:8181/aggregation?pricing=CN&track=109347263&shipments=109347263,123456891'
-```  
-
 #### Tech Stack Decision :
 
 ##### ZIO:

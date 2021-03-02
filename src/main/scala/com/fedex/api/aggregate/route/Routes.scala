@@ -11,7 +11,7 @@ import org.http4s._
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
-import zio.{UIO, ZIO}
+import zio.{IO, UIO, ZIO}
 import zio.interop.catz._
 import cats.implicits._
 
@@ -28,20 +28,23 @@ object Routes {
 
   private implicit def encoder[A](implicit D: Encoder[A]): EntityEncoder[AppTask, A] = jsonEncoderOf[AppTask, A]
 
-  private def callService[I, O](
-    queue: BulkDikeType[I, O],
-    parameters: Parameter[I]
-  ): UIO[Option[O]] =
+  private def callService[A, O](
+    queue: BulkDikeType[List[A], QueryResponse[A, O]],
+    parameters: Parameter[A]
+  ): UIO[Option[QueryResponse[A, O]]] =
     parameters
       .flatMap(_.toOption)
-      .fold(ZIO.succeed(Option.empty[O]))(queue(_).asSome.catchAll(_ => ZIO.succeed(Option.empty[O])))
+      .fold(ZIO.succeed(Option.empty[QueryResponse[A, O]])) { parameterList =>
+        IO.collectAllPar(parameterList.map(q => queue(List(q))).toSet)
+          .map(s => s.foldLeft(Map.empty[A, Option[O]])(_ ++ _))
+          .asSome
+          .catchAll(_ => ZIO.succeed(Option.empty[QueryResponse[A, O]]))
+      }
 
   def aggregatorService(
-    pricingQueue: BulkDikeType[List[ISOCountyCode], Map[ISOCountyCode, Option[PriceType]]],
-    trackQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[TrackStatus]]],
-    shipmentsQueue: BulkDikeType[List[OrderNumber], Map[OrderNumber, Option[List[
-      ProductType
-    ]]]]
+    pricingQueue: BulkDikeType[List[ISOCountyCode], QueryResponse[ISOCountyCode, PriceType]],
+    trackQueue: BulkDikeType[List[OrderNumber], QueryResponse[OrderNumber, TrackStatus]],
+    shipmentsQueue: BulkDikeType[List[OrderNumber], QueryResponse[OrderNumber, List[ProductType]]]
   ): Kleisli[AppTask, Request[AppTask], Response[AppTask]] =
     HttpRoutes
       .of[AppTask] {
